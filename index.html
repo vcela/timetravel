@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Travel</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f26f6f'%3E%3Cpath d='M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z'/%3E%3Cpath d='M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat+Alternates:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="sun-moon"></div>
+    <div class="container">
+        <h1>Time Travel</h1>
+        <div class="controls">
+            <div id="current-location">
+                <label for="current-tz">Your Current Location (Time Zone):</label>
+                <input type="text" id="current-tz" list="timezones" placeholder="e.g., Europe/Prague">
+                <button id="set-current">Set Current</button>
+            </div>
+            <div id="add-location">
+                <label for="new-tz">Add Location (Time Zone):</label>
+                <input type="text" id="new-tz" list="timezones" placeholder="e.g., America/New_York">
+                <button id="add-btn">Add</button>
+            </div>
+            <div id="settings">
+                <h3>Settings</h3>
+                <div class="setting-group">
+                    <div class="time-format">
+                        <input type="radio" name="format" value="24" id="format-24" checked><label for="format-24"> 24-hour</label>
+                        <input type="radio" name="format" value="12" id="format-12"><label for="format-12"> 12-hour</label>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <input type="checkbox" id="dark-mode"><label for="dark-mode"> Dark Mode</label>
+                </div>
+            </div>
+        </div>
+        <datalist id="timezones"></datalist>
+        <div id="times">
+            <h2>Times</h2>
+            <table id="times-table">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Current</th>
+                        <th>9:00</th>
+                        <th>12:00</th>
+                        <th>18:00</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="times-body">
+                </tbody>
+            </table>
+        </div>
+        <div id="share">
+            <h3>Share</h3>
+            <button onclick="shareOnFacebook()" title="Share on Facebook">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+            </button>
+            <button onclick="shareOnTwitter()" title="Share on X">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+            </button>
+            <button onclick="shareOnLinkedIn()" title="Share on LinkedIn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                </svg>
+            </button>
+            <button onclick="copyLink()" title="Copy Link">
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14.101 42.314c-1.87 0-3.628-.729-4.95-2.051L7.736 38.85c-2.729-2.729-2.729-7.171 0-9.899l9.192-9.192c1.322-1.322 3.08-2.051 4.95-2.051s3.628.729 4.949 2.051l1.414 1.414c.391.391.391 1.023 0 1.414s-1.023.391-1.414 0l-1.414-1.414c-.944-.944-2.2-1.465-3.535-1.465-1.336 0-2.592.521-3.536 1.465L9.15 30.364c-1.949 1.949-1.949 5.121 0 7.071l1.414 1.414c.944.944 2.2 1.465 3.536 1.465 1.335 0 2.591-.521 3.535-1.465L24 32.485c.391-.391 1.023-.391 1.414 0s.391 1.023 0 1.414l-6.364 6.364C17.729 41.586 15.971 42.314 14.101 42.314z"/>
+                    <path d="M26.121 30.293c-1.869 0-3.628-.729-4.949-2.051-.391-.391-.391-1.023 0-1.414s1.023-.391 1.414 0c.944.944 2.2 1.465 3.535 1.465 1.336 0 2.592-.521 3.536-1.465l9.192-9.192c1.949-1.949 1.949-5.121 0-7.07L37.436 9.15c-1.949-1.949-5.122-1.949-7.071 0L24 15.515c-.391.391-1.023.391-1.414 0s-.391-1.023 0-1.414l6.364-6.364c2.729-2.729 7.17-2.729 9.899 0l1.414 1.415c2.729 2.729 2.729 7.17 0 9.898l-9.192 9.192C29.75 29.564 27.991 30.293 26.121 30.293z"/>
+                </svg>
+            </button>
+        </div>
+        <p class="copy">made by <a href="https://www.aifred.cz">@huko</a> with Grok Code Fast 1</p>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
