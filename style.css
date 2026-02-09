@@ -125,6 +125,39 @@ h3 {
     }
 }
 
+#custom-time {
+    margin-top: 1rem;
+}
+
+#custom-time input[type="datetime-local"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 0.125rem solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.custom-time-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.custom-time-actions button {
+    margin-top: 0.625rem;
+}
+
+.custom-time-status {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    opacity: 1;
+}
+
 #add-location {
     background-color: var(--blue);
     position: relative;
@@ -295,6 +328,34 @@ table button {
     text-align: right;
     vertical-align: middle;
     padding-right: 1.25rem;
+}
+
+.table-time-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.table-time-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 0.125rem solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    background: var(--bg);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+.table-time-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.table-time-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
 }
 
 #times-table button {

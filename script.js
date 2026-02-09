@@ -7,12 +7,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const showDateEl = document.getElementById('show-date');
     const darkModeEl = document.getElementById('dark-mode');
     const sunMoonEl = document.getElementById('sun-moon');
+    const customTimeInput = document.getElementById('custom-time-input');
+    const customTimeApplyBtn = document.getElementById('custom-time-apply');
+    const customTimeNowBtn = document.getElementById('custom-time-now');
+    const customTimeStatus = document.getElementById('custom-time-status');
 
     let currentTz = localStorage.getItem('currentTz') || 'Europe/Prague';
     let locations = JSON.parse(localStorage.getItem('locations')) || [];
     let timeFormat = localStorage.getItem('timeFormat') || '24';
     let showDate = localStorage.getItem('showDate') === 'true';
     let darkMode = localStorage.getItem('darkMode') !== 'false'; // default true
+    let customTimeEnabled = localStorage.getItem('customTimeEnabled') === 'true';
+    let customTimeValue = localStorage.getItem('customTimeValue') || '';
 
     // Load from URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -20,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (urlParams.has('locations')) locations = urlParams.get('locations').split(',').filter(tz => tz);
     if (urlParams.has('timeFormat')) timeFormat = urlParams.get('timeFormat');
     if (urlParams.has('showDate')) showDate = urlParams.get('showDate') === 'true';
+    if (urlParams.has('customTimeEnabled')) customTimeEnabled = urlParams.get('customTimeEnabled') === 'true';
+    if (urlParams.has('customTime')) customTimeValue = urlParams.get('customTime');
 
     // Validate and filter locations
     locations = locations.filter(tz => {
@@ -62,6 +70,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const baliOption3 = document.createElement('option');
         baliOption3.value = 'Bali';
         datalist.appendChild(baliOption3);
+
+        // Add Vietnam
+        const vietnamOption = document.createElement('option');
+        vietnamOption.value = 'Asia/Ho_Chi_Minh';
+        datalist.appendChild(vietnamOption);
+        const vietnamOption2 = document.createElement('option');
+        vietnamOption2.value = 'Vietnam';
+        datalist.appendChild(vietnamOption2);
     } else {
         console.error('Datalist element not found');
     }
@@ -74,8 +90,100 @@ document.addEventListener('DOMContentLoaded', function() {
 
     currentTzInput.value = currentTz;
 
+    function getTimeZoneOffsetMinutes(timeZone, date) {
+        const dtf = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        const parts = dtf.formatToParts(date).reduce((acc, part) => {
+            if (part.type !== 'literal') acc[part.type] = part.value;
+            return acc;
+        }, {});
+        const asUTC = Date.UTC(
+            Number(parts.year),
+            Number(parts.month) - 1,
+            Number(parts.day),
+            Number(parts.hour),
+            Number(parts.minute),
+            Number(parts.second)
+        );
+        return (asUTC - date.getTime()) / 60000;
+    }
+
+    function parseCustomTimeInput(value, timeZone) {
+        if (!value) return null;
+        const normalized = value.trim().replace('T', ' ');
+        const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+        if (!match) return null;
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        let hour = Number(match[4]);
+        const minute = Number(match[5]);
+        const meridiem = match[6] ? match[6].toUpperCase() : null;
+        if ([year, month, day, hour, minute].some(n => Number.isNaN(n))) return null;
+        if (meridiem) {
+            if (hour < 1 || hour > 12) return null;
+            hour = hour % 12;
+            if (meridiem === 'PM') hour += 12;
+        }
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+        const utcCandidate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+        const offsetMinutes = getTimeZoneOffsetMinutes(timeZone, utcCandidate);
+        return new Date(utcCandidate.getTime() - offsetMinutes * 60000);
+    }
+
+    function formatForInput(date, timeZone) {
+        const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const timeFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: timeFormat === '12'
+        });
+        const dateParts = dateFormatter.formatToParts(date).reduce((acc, part) => {
+            if (part.type !== 'literal') acc[part.type] = part.value;
+            return acc;
+        }, {});
+        const timeParts = timeFormatter.formatToParts(date).reduce((acc, part) => {
+            if (part.type !== 'literal') acc[part.type] = part.value;
+            return acc;
+        }, {});
+        const datePart = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+        const timePart = `${timeParts.hour}:${timeParts.minute}`;
+        if (timeFormat === '12') {
+            const dayPeriod = (timeParts.dayPeriod || '').toUpperCase();
+            return `${datePart} ${timePart} ${dayPeriod}`.trim();
+        }
+        return `${datePart} ${timePart}`;
+    }
+
+    function updateCustomTimePlaceholder() {
+        if (!customTimeInput) return;
+        customTimeInput.placeholder = timeFormat === '12'
+            ? 'YYYY-MM-DD hh:mm AM/PM'
+            : 'YYYY-MM-DD HH:mm';
+    }
+
+    function updateCustomTimeStatus() {
+        if (!customTimeStatus) return;
+        customTimeStatus.textContent = customTimeEnabled ? 'Custom time active' : 'Using live time';
+    }
+
     function normalizeTz(tz) {
         if (tz === 'Bali' || tz === 'Asia/Bali') return 'Asia/Makassar';
+        if (tz === 'Vietnam' || tz === 'Viet Nam') return 'Asia/Ho_Chi_Minh';
         return tz;
     }
 
@@ -130,15 +238,27 @@ document.addEventListener('DOMContentLoaded', function() {
         params.set('locations', locations.join(','));
         params.set('timeFormat', timeFormat);
         params.set('showDate', showDate.toString());
+        params.set('customTimeEnabled', customTimeEnabled.toString());
+        if (customTimeValue) params.set('customTime', customTimeValue);
         const newURL = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
         window.history.replaceState(null, '', newURL);
     }
 
     function updateTimes() {
-        const now = new Date();
+        let baseDate = new Date();
+        if (customTimeEnabled && customTimeValue) {
+            const parsed = parseCustomTimeInput(customTimeValue, currentTz);
+            if (parsed) {
+                baseDate = parsed;
+            } else {
+                customTimeEnabled = false;
+                localStorage.setItem('customTimeEnabled', customTimeEnabled);
+                updateCustomTimeStatus();
+            }
+        }
         let currentHour;
         try {
-            currentHour = parseInt(now.toLocaleString('en-US', {timeZone: currentTz, hour: 'numeric', hour12: false}));
+            currentHour = parseInt(baseDate.toLocaleString('en-US', {timeZone: currentTz, hour: 'numeric', hour12: false}));
         } catch (e) {
             console.error(`Error getting hour for ${currentTz}:`, e);
             currentHour = 12; // fallback
@@ -152,22 +272,70 @@ document.addEventListener('DOMContentLoaded', function() {
         // Current location row
         try {
             const currentRow = timesBody.insertRow();
+            currentRow.dataset.type = 'current';
             const cell = currentRow.insertCell();
             cell.innerHTML = formatLocation(displayTz(currentTz));
             const timeCell = currentRow.insertCell();
-            if (showDate) {
-                const full = now.toLocaleString('en-US', getTimeOptions(currentTz));
-                const parts = full.split(', ');
-                if (parts.length > 1) {
-                    timeCell.innerHTML = `<small>${parts[0]}</small><br>${parts.slice(1).join(', ')}`;
-                } else {
-                    timeCell.textContent = full;
+            const currentTimeWrapper = document.createElement('div');
+            currentTimeWrapper.className = 'table-time-wrapper';
+            const currentTimeInput = document.createElement('input');
+            currentTimeInput.type = 'text';
+            currentTimeInput.className = 'table-time-input';
+            currentTimeInput.value = formatForInput(baseDate, currentTz);
+            currentTimeInput.placeholder = timeFormat === '12'
+                ? 'YYYY-MM-DD hh:mm AM/PM'
+                : 'YYYY-MM-DD HH:mm';
+            currentTimeWrapper.appendChild(currentTimeInput);
+
+            const currentTimeActions = document.createElement('div');
+            currentTimeActions.className = 'table-time-actions';
+            const liveButton = document.createElement('button');
+            liveButton.type = 'button';
+            liveButton.className = 'table-time-btn';
+            liveButton.textContent = 'Live';
+            currentTimeActions.appendChild(liveButton);
+            currentTimeWrapper.appendChild(currentTimeActions);
+            timeCell.appendChild(currentTimeWrapper);
+
+            const applyCustomFromTable = () => {
+                const value = currentTimeInput.value.trim();
+                const parsed = parseCustomTimeInput(value, currentTz);
+                if (!parsed) {
+                    alert('Please enter a valid date and time.');
+                    return;
                 }
-            } else {
-                timeCell.textContent = now.toLocaleString('en-US', getTimeOptions(currentTz));
-            }
+                customTimeEnabled = true;
+                customTimeValue = formatForInput(parsed, currentTz);
+                currentTimeInput.value = customTimeValue;
+                if (customTimeInput) customTimeInput.value = customTimeValue;
+                localStorage.setItem('customTimeEnabled', customTimeEnabled);
+                localStorage.setItem('customTimeValue', customTimeValue);
+                updateCustomTimeStatus();
+                updateTimes();
+                updateURL();
+            };
+
+            currentTimeInput.addEventListener('change', applyCustomFromTable);
+            currentTimeInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    applyCustomFromTable();
+                }
+            });
+
+            liveButton.addEventListener('click', () => {
+                customTimeEnabled = false;
+                customTimeValue = formatForInput(new Date(), currentTz);
+                currentTimeInput.value = customTimeValue;
+                if (customTimeInput) customTimeInput.value = customTimeValue;
+                localStorage.setItem('customTimeEnabled', customTimeEnabled);
+                localStorage.setItem('customTimeValue', customTimeValue);
+                updateCustomTimeStatus();
+                updateTimes();
+                updateURL();
+            });
             for (let h of [9, 12, 18]) {
-                const timeAtH = new Date(now.getTime() + (h - currentHour) * 3600000);
+                const timeAtH = new Date(baseDate.getTime() + (h - currentHour) * 3600000);
                 timeAtH.setMinutes(0, 0, 0);
                 const cellH = currentRow.insertCell();
                 if (showDate) {
@@ -183,6 +351,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             currentRow.insertCell().textContent = '';
+
+            currentRow.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+            currentRow.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const jsonPayload = e.dataTransfer.getData('application/json');
+                if (!jsonPayload) return;
+                let payload;
+                try {
+                    payload = JSON.parse(jsonPayload);
+                } catch {
+                    return;
+                }
+                if (payload.type !== 'location' || !payload.tz) return;
+                const previousCurrent = currentTz;
+                currentTz = payload.tz;
+                locations = locations.filter(l => l !== payload.tz);
+                if (previousCurrent && previousCurrent !== currentTz && !locations.includes(previousCurrent)) {
+                    locations.unshift(previousCurrent);
+                }
+                localStorage.setItem('currentTz', currentTz);
+                localStorage.setItem('locations', JSON.stringify(locations));
+                updateTimes();
+                updateURL();
+            });
         } catch (e) {
             console.error(`Error with current time zone ${currentTz}:`, e);
         }
@@ -191,11 +385,12 @@ document.addEventListener('DOMContentLoaded', function() {
         locations.forEach((tz, index) => {
             try {
                 const row = timesBody.insertRow();
+                row.dataset.type = 'location';
                 const cell = row.insertCell();
                 cell.innerHTML = formatLocation(displayTz(tz));
                 const timeCell = row.insertCell();
                 if (showDate) {
-                    const full = now.toLocaleString('en-US', getTimeOptions(tz));
+                    const full = baseDate.toLocaleString('en-US', getTimeOptions(tz));
                     const parts = full.split(', ');
                     if (parts.length > 1) {
                         timeCell.innerHTML = `<small>${parts[0]}</small><br>${parts.slice(1).join(', ')}`;
@@ -203,10 +398,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         timeCell.textContent = full;
                     }
                 } else {
-                    timeCell.textContent = now.toLocaleString('en-US', getTimeOptions(tz));
+                    timeCell.textContent = baseDate.toLocaleString('en-US', getTimeOptions(tz));
                 }
                 for (let h of [9, 12, 18]) {
-                    const timeAtH = new Date(now.getTime() + (h - currentHour) * 3600000);
+                    const timeAtH = new Date(baseDate.getTime() + (h - currentHour) * 3600000);
                     timeAtH.setMinutes(0, 0, 0);
                     const cellH = row.insertCell();
                     if (showDate) {
@@ -235,15 +430,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Drag and drop
                 row.draggable = true;
                 row.dataset.index = index;
+                row.dataset.tz = tz;
                 row.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', index);
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                        type: 'location',
+                        index,
+                        tz
+                    }));
                 });
                 row.addEventListener('dragover', (e) => {
                     e.preventDefault();
                 });
                 row.addEventListener('drop', (e) => {
                     e.preventDefault();
-                    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    let draggedIndex;
+                    const jsonPayload = e.dataTransfer.getData('application/json');
+                    if (jsonPayload) {
+                        try {
+                            const payload = JSON.parse(jsonPayload);
+                            draggedIndex = payload.index;
+                        } catch {
+                            draggedIndex = NaN;
+                        }
+                    } else {
+                        draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    }
                     const targetIndex = parseInt(e.target.closest('tr').dataset.index);
                     if (draggedIndex !== targetIndex && !isNaN(targetIndex)) {
                         const draggedTz = locations.splice(draggedIndex, 1)[0];
@@ -271,6 +482,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         currentTz = tz;
         localStorage.setItem('currentTz', currentTz);
+        if (!customTimeEnabled && customTimeInput) {
+            customTimeValue = formatForInput(new Date(), currentTz);
+            customTimeInput.value = customTimeValue;
+            localStorage.setItem('customTimeValue', customTimeValue);
+        }
         updateTimes();
         updateURL();
     });
@@ -306,6 +522,14 @@ document.addEventListener('DOMContentLoaded', function() {
         radio.addEventListener('change', function() {
             timeFormat = this.value;
             localStorage.setItem('timeFormat', timeFormat);
+            if (customTimeInput) {
+                const parsed = customTimeValue ? parseCustomTimeInput(customTimeValue, currentTz) : null;
+                const nextValue = formatForInput(parsed || new Date(), currentTz);
+                customTimeValue = nextValue;
+                customTimeInput.value = nextValue;
+                localStorage.setItem('customTimeValue', customTimeValue);
+                updateCustomTimePlaceholder();
+            }
             updateTimes();
             updateURL();
         });
@@ -327,6 +551,48 @@ document.addEventListener('DOMContentLoaded', function() {
             darkMode = this.checked;
             localStorage.setItem('darkMode', darkMode);
             document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+        });
+    }
+
+    if (customTimeInput) {
+        if (!customTimeValue) {
+            customTimeValue = formatForInput(new Date(), currentTz);
+            localStorage.setItem('customTimeValue', customTimeValue);
+        }
+        customTimeInput.value = customTimeValue;
+        updateCustomTimePlaceholder();
+    }
+    updateCustomTimeStatus();
+
+    if (customTimeApplyBtn) {
+        customTimeApplyBtn.addEventListener('click', function() {
+            const value = customTimeInput ? customTimeInput.value.trim() : '';
+            const parsed = parseCustomTimeInput(value, currentTz);
+            if (!parsed) {
+                alert('Please enter a valid date and time.');
+                return;
+            }
+            customTimeEnabled = true;
+            customTimeValue = formatForInput(parsed, currentTz);
+            if (customTimeInput) customTimeInput.value = customTimeValue;
+            localStorage.setItem('customTimeEnabled', customTimeEnabled);
+            localStorage.setItem('customTimeValue', customTimeValue);
+            updateCustomTimeStatus();
+            updateTimes();
+            updateURL();
+        });
+    }
+
+    if (customTimeNowBtn) {
+        customTimeNowBtn.addEventListener('click', function() {
+            customTimeEnabled = false;
+            customTimeValue = formatForInput(new Date(), currentTz);
+            if (customTimeInput) customTimeInput.value = customTimeValue;
+            localStorage.setItem('customTimeEnabled', customTimeEnabled);
+            localStorage.setItem('customTimeValue', customTimeValue);
+            updateCustomTimeStatus();
+            updateTimes();
+            updateURL();
         });
     }
 
